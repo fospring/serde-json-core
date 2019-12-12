@@ -1,6 +1,6 @@
 use serde::de;
 
-use crate::de::{Deserializer, Error, Result};
+use crate::de::{Deserializer, BTError, Result};
 
 pub(crate) struct SeqAccess<'a, 'b> {
     first: bool,
@@ -14,7 +14,7 @@ impl<'a, 'b> SeqAccess<'a, 'b> {
 }
 
 impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
-    type Error = Error;
+    type Error = BTError;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
     where
@@ -23,27 +23,27 @@ impl<'a, 'de> de::SeqAccess<'de> for SeqAccess<'a, 'de> {
         let peek = match self
             .de
             .parse_whitespace()
-            .ok_or(Error::EofWhileParsingList)?
+            .ok_or(BTError::EofWhileParsingList)?
         {
             b']' => return Ok(None),
             b',' => {
                 self.de.eat_char();
                 self.de
                     .parse_whitespace()
-                    .ok_or(Error::EofWhileParsingValue)?
+                    .ok_or(BTError::EofWhileParsingValue)?
             }
             c => {
                 if self.first {
                     self.first = false;
                     c
                 } else {
-                    return Err(Error::ExpectedListCommaOrEnd);
+                    return Err(BTError::ExpectedListCommaOrEnd);
                 }
             }
         };
 
         if peek == b']' {
-            Err(Error::TrailingComma)
+            Err(BTError::TrailingComma)
         } else {
             Ok(Some(seed.deserialize(&mut *self.de)?))
         }

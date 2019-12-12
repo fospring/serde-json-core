@@ -13,37 +13,37 @@ mod seq;
 mod struct_;
 
 /// Serialization result
-pub type Result<T> = ::core::result::Result<T, Error>;
+pub type Result<T> = ::core::result::Result<T, BTError>;
 
 /// This type represents all possible errors that can occur when serializing JSON data
 #[derive(Debug)]
-pub enum Error {
+pub enum BTError {
     /// Buffer is full
     BufferFull,
     #[doc(hidden)]
     __Extensible,
 }
 
-impl From<()> for Error {
-    fn from(_: ()) -> Error {
-        Error::BufferFull
+impl From<()> for BTError {
+    fn from(_: ()) -> BTError {
+        BTError::BufferFull
     }
 }
 
-impl From<u8> for Error {
-    fn from(_: u8) -> Error {
-        Error::BufferFull
+impl From<u8> for BTError {
+    fn from(_: u8) -> BTError {
+        BTError::BufferFull
     }
 }
 
 #[cfg(feature = "std")]
-impl ::std::error::Error for Error {
+impl ::std::error::Error for BTError {
     fn description(&self) -> &str {
         ""
     }
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for BTError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Buffer is full")
     }
@@ -137,7 +137,7 @@ where
     B: heapless::ArrayLength<u8>,
 {
     type Ok = ();
-    type Error = Error;
+    type Error = BTError;
     type SerializeSeq = SerializeSeq<'a, B>;
     type SerializeTuple = SerializeSeq<'a, B>;
     type SerializeTupleStruct = Unreachable;
@@ -350,7 +350,7 @@ where
     Ok(ser.buf)
 }
 
-impl ser::Error for Error {
+impl ser::Error for BTError {
     fn custom<T>(_msg: T) -> Self
     where
         T: fmt::Display,
@@ -363,7 +363,7 @@ pub(crate) enum Unreachable {}
 
 impl ser::SerializeTupleStruct for Unreachable {
     type Ok = ();
-    type Error = Error;
+    type Error = BTError;
 
     fn serialize_field<T: ?Sized>(&mut self, _value: &T) -> Result<()> {
         unreachable!()
@@ -376,7 +376,7 @@ impl ser::SerializeTupleStruct for Unreachable {
 
 impl ser::SerializeTupleVariant for Unreachable {
     type Ok = ();
-    type Error = Error;
+    type Error = BTError;
 
     fn serialize_field<T: ?Sized>(&mut self, _value: &T) -> Result<()> {
         unreachable!()
@@ -389,7 +389,7 @@ impl ser::SerializeTupleVariant for Unreachable {
 
 impl ser::SerializeMap for Unreachable {
     type Ok = ();
-    type Error = Error;
+    type Error = BTError;
 
     fn serialize_key<T: ?Sized>(&mut self, _key: &T) -> Result<()>
     where
@@ -412,7 +412,7 @@ impl ser::SerializeMap for Unreachable {
 
 impl ser::SerializeStructVariant for Unreachable {
     type Ok = ();
-    type Error = Error;
+    type Error = BTError;
 
     fn serialize_field<T: ?Sized>(&mut self, _key: &'static str, _value: &T) -> Result<()>
     where

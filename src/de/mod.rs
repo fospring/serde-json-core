@@ -14,11 +14,11 @@ mod map;
 mod seq;
 
 /// Deserialization result
-pub type Result<T> = core::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, BTError>;
 
 /// This type represents all possible errors that can occur when deserializing JSON data
 #[derive(Debug, PartialEq)]
-pub enum Error {
+pub enum BTError {
     /// EOF while parsing a list.
     EofWhileParsingList,
 
@@ -75,7 +75,7 @@ pub enum Error {
 }
 
 #[cfg(feature = "std")]
-impl ::std::error::Error for Error {
+impl ::std::error::Error for BTError {
     fn description(&self) -> &str {
         ""
     }
@@ -97,13 +97,13 @@ impl<'a> Deserializer<'a> {
 
     fn end(&mut self) -> Result<()> {
         match self.parse_whitespace() {
-            Some(_) => Err(Error::TrailingCharacters),
+            Some(_) => Err(BTError::TrailingCharacters),
             None => Ok(()),
         }
     }
 
     fn end_seq(&mut self) -> Result<()> {
-        match self.parse_whitespace().ok_or(Error::EofWhileParsingList)? {
+        match self.parse_whitespace().ok_or(BTError::EofWhileParsingList)? {
             b']' => {
                 self.eat_char();
                 Ok(())
@@ -111,25 +111,25 @@ impl<'a> Deserializer<'a> {
             b',' => {
                 self.eat_char();
                 match self.parse_whitespace() {
-                    Some(b']') => Err(Error::TrailingComma),
-                    _ => Err(Error::TrailingCharacters),
+                    Some(b']') => Err(BTError::TrailingComma),
+                    _ => Err(BTError::TrailingCharacters),
                 }
             }
-            _ => Err(Error::TrailingCharacters),
+            _ => Err(BTError::TrailingCharacters),
         }
     }
 
     fn end_map(&mut self) -> Result<()> {
         match self
             .parse_whitespace()
-            .ok_or(Error::EofWhileParsingObject)?
+            .ok_or(BTError::EofWhileParsingObject)?
         {
             b'}' => {
                 self.eat_char();
                 Ok(())
             }
-            b',' => Err(Error::TrailingComma),
-            _ => Err(Error::TrailingCharacters),
+            b',' => Err(BTError::TrailingComma),
+            _ => Err(BTError::TrailingCharacters),
         }
     }
 
@@ -146,7 +146,7 @@ impl<'a> Deserializer<'a> {
     fn parse_ident(&mut self, ident: &[u8]) -> Result<()> {
         for c in ident {
             if Some(*c) != self.next_char() {
-                return Err(Error::ExpectedSomeIdent);
+                return Err(BTError::ExpectedSomeIdent);
             }
         }
 
@@ -156,13 +156,13 @@ impl<'a> Deserializer<'a> {
     fn parse_object_colon(&mut self) -> Result<()> {
         match self
             .parse_whitespace()
-            .ok_or(Error::EofWhileParsingObject)?
+            .ok_or(BTError::EofWhileParsingObject)?
         {
             b':' => {
                 self.eat_char();
                 Ok(())
             }
-            _ => Err(Error::ExpectedColon),
+            _ => Err(BTError::ExpectedColon),
         }
     }
 
@@ -174,10 +174,10 @@ impl<'a> Deserializer<'a> {
                     let end = self.index;
                     self.eat_char();
                     return str::from_utf8(&self.slice[start..end])
-                        .map_err(|_| Error::InvalidUnicodeCodePoint);
+                        .map_err(|_| BTError::InvalidUnicodeCodePoint);
                 }
                 Some(_) => self.eat_char(),
-                None => return Err(Error::EofWhileParsingString),
+                None => return Err(BTError::EofWhileParsingString),
             }
         }
     }
@@ -208,10 +208,10 @@ macro_rules! deserialize_unsigned {
     ($self:ident, $visitor:ident, $uxx:ident, $visit_uxx:ident) => {{
         let peek = $self
             .parse_whitespace()
-            .ok_or(Error::EofWhileParsingValue)?;
+            .ok_or(BTError::EofWhileParsingValue)?;
 
         match peek {
-            b'-' => Err(Error::InvalidNumber),
+            b'-' => Err(BTError::InvalidNumber),
             b'0' => {
                 $self.eat_char();
                 $visitor.$visit_uxx(0)
@@ -226,15 +226,15 @@ macro_rules! deserialize_unsigned {
                             $self.eat_char();
                             number = number
                                 .checked_mul(10)
-                                .ok_or(Error::InvalidNumber)?
+                                .ok_or(BTError::InvalidNumber)?
                                 .checked_add((c - b'0') as $uxx)
-                                .ok_or(Error::InvalidNumber)?;
+                                .ok_or(BTError::InvalidNumber)?;
                         }
                         _ => return $visitor.$visit_uxx(number),
                     }
                 }
             }
-            _ => Err(Error::InvalidType),
+            _ => Err(BTError::InvalidType),
         }
     }};
 }
@@ -243,7 +243,7 @@ macro_rules! deserialize_signed {
     ($self:ident, $visitor:ident, $ixx:ident, $visit_ixx:ident) => {{
         let signed = match $self
             .parse_whitespace()
-            .ok_or(Error::EofWhileParsingValue)?
+            .ok_or(BTError::EofWhileParsingValue)?
         {
             b'-' => {
                 $self.eat_char();
@@ -252,7 +252,7 @@ macro_rules! deserialize_signed {
             _ => false,
         };
 
-        match $self.peek().ok_or(Error::EofWhileParsingValue)? {
+        match $self.peek().ok_or(BTError::EofWhileParsingValue)? {
             b'0' => {
                 $self.eat_char();
                 $visitor.$visit_ixx(0)
@@ -267,15 +267,15 @@ macro_rules! deserialize_signed {
                             $self.eat_char();
                             number = number
                                 .checked_mul(10)
-                                .ok_or(Error::InvalidNumber)?
+                                .ok_or(BTError::InvalidNumber)?
                                 .checked_add((c - b'0') as $ixx * if signed { -1 } else { 1 })
-                                .ok_or(Error::InvalidNumber)?;
+                                .ok_or(BTError::InvalidNumber)?;
                         }
                         _ => return $visitor.$visit_ixx(number),
                     }
                 }
             }
-            _ => return Err(Error::InvalidType),
+            _ => return Err(BTError::InvalidType),
         }
     }};
 }
@@ -293,18 +293,18 @@ macro_rules! deserialize_fromstr {
                             // already checked that it contains only ascii
                             str::from_utf8_unchecked(&$self.slice[start..$self.index])
                         };
-                        let v = $typ::from_str(s).or(Err(Error::InvalidNumber))?;
+                        let v = $typ::from_str(s).or(Err(BTError::InvalidNumber))?;
                         return $visitor.$visit_fn(v);
                     }
                 }
-                None => return Err(Error::EofWhileParsingNumber),
+                None => return Err(BTError::EofWhileParsingNumber),
             }
         }
     }};
 }
 
 impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
-    type Error = Error;
+    type Error = BTError;
 
     /// Unsupported. Can’t parse a value without knowing its expected type.
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
@@ -318,7 +318,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let peek = self.parse_whitespace().ok_or(Error::EofWhileParsingValue)?;
+        let peek = self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)?;
 
         match peek {
             b't' => {
@@ -331,7 +331,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                 self.parse_ident(b"alse")?;
                 visitor.visit_bool(false)
             }
-            _ => Err(Error::InvalidType),
+            _ => Err(BTError::InvalidType),
         }
     }
 
@@ -395,7 +395,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.parse_whitespace().ok_or(Error::EofWhileParsingValue)?;
+        self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)?;
         deserialize_fromstr!(self, visitor, f32, visit_f32, b"0123456789+-.eE")
     }
 
@@ -403,7 +403,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        self.parse_whitespace().ok_or(Error::EofWhileParsingValue)?;
+        self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)?;
         deserialize_fromstr!(self, visitor, f64, visit_f64, b"0123456789+-.eE")
     }
 
@@ -418,14 +418,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let peek = self.parse_whitespace().ok_or(Error::EofWhileParsingValue)?;
+        let peek = self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)?;
 
         match peek {
             b'"' => {
                 self.eat_char();
                 visitor.visit_borrowed_str(self.parse_str()?)
             }
-            _ => Err(Error::InvalidType),
+            _ => Err(BTError::InvalidType),
         }
     }
 
@@ -457,7 +457,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.parse_whitespace().ok_or(Error::EofWhileParsingValue)? {
+        match self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)? {
             b'n' => {
                 self.eat_char();
                 self.parse_ident(b"ull")?;
@@ -495,7 +495,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.peek().ok_or(Error::EofWhileParsingValue)? {
+        match self.peek().ok_or(BTError::EofWhileParsingValue)? {
             b'[' => {
                 self.eat_char();
                 let ret = visitor.visit_seq(SeqAccess::new(self))?;
@@ -504,7 +504,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
                 Ok(ret)
             }
-            _ => Err(Error::InvalidType),
+            _ => Err(BTError::InvalidType),
         }
     }
 
@@ -546,7 +546,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let peek = self.parse_whitespace().ok_or(Error::EofWhileParsingValue)?;
+        let peek = self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)?;
 
         if peek == b'{' {
             self.eat_char();
@@ -557,7 +557,7 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
             Ok(ret)
         } else {
-            Err(Error::InvalidType)
+            Err(BTError::InvalidType)
         }
     }
 
@@ -570,9 +570,9 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.parse_whitespace().ok_or(Error::EofWhileParsingValue)? {
+        match self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)? {
             b'"' => visitor.visit_enum(UnitVariantAccess::new(self)),
-            _ => Err(Error::ExpectedSomeValue),
+            _ => Err(BTError::ExpectedSomeValue),
         }
     }
 
@@ -589,11 +589,11 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.parse_whitespace().ok_or(Error::EofWhileParsingValue)? {
+        match self.parse_whitespace().ok_or(BTError::EofWhileParsingValue)? {
             b'"' => self.deserialize_str(visitor),
             b'[' => self.deserialize_seq(visitor),
             b'{' => self.deserialize_struct("ignored", &[], visitor),
-            b',' | b'}' | b']' => Err(Error::ExpectedSomeValue),
+            b',' | b'}' | b']' => Err(BTError::ExpectedSomeValue),
             // If it’s something else then we chomp until we get to an end delimiter.
             // This does technically allow for illegal JSON since we’re just ignoring
             // characters rather than parsing them.
@@ -603,14 +603,14 @@ impl<'a, 'de> de::Deserializer<'de> for &'a mut Deserializer<'de> {
                     // implements visit_unit to return its unit Ok result.
                     Some(b',') | Some(b'}') | Some(b']') => break visitor.visit_unit(),
                     Some(_) => self.eat_char(),
-                    None => break Err(Error::EofWhileParsingString),
+                    None => break Err(BTError::EofWhileParsingString),
                 }
             },
         }
     }
 }
 
-impl de::Error for Error {
+impl de::Error for BTError {
     // We can’t alloc a String to save the msg in, so we have this less-than-useful
     // error as better than panicking with unreachable!. These errors can arise from
     // derive, such as "not enough elements in a tuple" and "missing required field".
@@ -621,47 +621,47 @@ impl de::Error for Error {
     where
         T: fmt::Display,
     {
-        Error::CustomError
+        BTError::CustomError
     }
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for BTError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Error::EofWhileParsingList => "EOF while parsing a list.",
-                Error::EofWhileParsingObject => "EOF while parsing an object.",
-                Error::EofWhileParsingString => "EOF while parsing a string.",
-                Error::EofWhileParsingValue => "EOF while parsing a JSON value.",
-                Error::ExpectedColon => "Expected this character to be a `':'`.",
-                Error::ExpectedListCommaOrEnd => {
+                BTError::EofWhileParsingList => "EOF while parsing a list.",
+                BTError::EofWhileParsingObject => "EOF while parsing an object.",
+                BTError::EofWhileParsingString => "EOF while parsing a string.",
+                BTError::EofWhileParsingValue => "EOF while parsing a JSON value.",
+                BTError::ExpectedColon => "Expected this character to be a `':'`.",
+                BTError::ExpectedListCommaOrEnd => {
                     "Expected this character to be either a `','` or\
                      a \
                      `']'`."
                 }
-                Error::ExpectedObjectCommaOrEnd => {
+                BTError::ExpectedObjectCommaOrEnd => {
                     "Expected this character to be either a `','` \
                      or a \
                      `'}'`."
                 }
-                Error::ExpectedSomeIdent => {
+                BTError::ExpectedSomeIdent => {
                     "Expected to parse either a `true`, `false`, or a \
                      `null`."
                 }
-                Error::ExpectedSomeValue => "Expected this character to start a JSON value.",
-                Error::InvalidNumber => "Invalid number.",
-                Error::InvalidType => "Invalid type",
-                Error::InvalidUnicodeCodePoint => "Invalid unicode code point.",
-                Error::KeyMustBeAString => "Object key is not a string.",
-                Error::TrailingCharacters => {
+                BTError::ExpectedSomeValue => "Expected this character to start a JSON value.",
+                BTError::InvalidNumber => "Invalid number.",
+                BTError::InvalidType => "Invalid type",
+                BTError::InvalidUnicodeCodePoint => "Invalid unicode code point.",
+                BTError::KeyMustBeAString => "Object key is not a string.",
+                BTError::TrailingCharacters => {
                     "JSON has non-whitespace trailing characters after \
                      the \
                      value."
                 }
-                Error::TrailingComma => "JSON has a comma after the last value in an array or map.",
-                Error::CustomError => "JSON does not match deserializer’s expected format.",
+                BTError::TrailingComma => "JSON has a comma after the last value in an array or map.",
+                BTError::CustomError => "JSON does not match deserializer’s expected format.",
                 _ => "Invalid JSON",
             }
         )
@@ -880,11 +880,11 @@ mod tests {
         // wrong number of args
         assert_eq!(
             crate::from_str::<Xy>(r#"[10]"#),
-            Err(crate::de::Error::CustomError)
+            Err(crate::de::BTError::CustomError)
         );
         assert_eq!(
             crate::from_str::<Xy>(r#"[10, 20, 30]"#),
-            Err(crate::de::Error::TrailingCharacters)
+            Err(crate::de::BTError::TrailingCharacters)
         );
     }
 
@@ -926,17 +926,17 @@ mod tests {
 
         assert_eq!(
             crate::from_str::<Temperature>(r#"{ "temperature": 20, "broken": }"#),
-            Err(crate::de::Error::ExpectedSomeValue)
+            Err(crate::de::BTError::ExpectedSomeValue)
         );
 
         assert_eq!(
             crate::from_str::<Temperature>(r#"{ "temperature": 20, "broken": [ }"#),
-            Err(crate::de::Error::ExpectedSomeValue)
+            Err(crate::de::BTError::ExpectedSomeValue)
         );
 
         assert_eq!(
             crate::from_str::<Temperature>(r#"{ "temperature": 20, "broken": ] }"#),
-            Err(crate::de::Error::ExpectedSomeValue)
+            Err(crate::de::BTError::ExpectedSomeValue)
         );
     }
 

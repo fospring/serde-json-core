@@ -1,6 +1,6 @@
 use serde::de;
 
-use crate::de::{Deserializer, Error, Result};
+use crate::de::{Deserializer, BTError, Result};
 
 pub(crate) struct UnitVariantAccess<'a, 'b> {
     de: &'a mut Deserializer<'b>,
@@ -13,7 +13,7 @@ impl<'a, 'b> UnitVariantAccess<'a, 'b> {
 }
 
 impl<'a, 'de> de::EnumAccess<'de> for UnitVariantAccess<'a, 'de> {
-    type Error = Error;
+    type Error = BTError;
     type Variant = Self;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self)>
@@ -26,7 +26,7 @@ impl<'a, 'de> de::EnumAccess<'de> for UnitVariantAccess<'a, 'de> {
 }
 
 impl<'de, 'a> de::VariantAccess<'de> for UnitVariantAccess<'a, 'de> {
-    type Error = Error;
+    type Error = BTError;
 
     fn unit_variant(self) -> Result<()> {
         Ok(())
@@ -36,20 +36,20 @@ impl<'de, 'a> de::VariantAccess<'de> for UnitVariantAccess<'a, 'de> {
     where
         T: de::DeserializeSeed<'de>,
     {
-        Err(Error::InvalidType)
+        Err(BTError::InvalidType)
     }
 
     fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        Err(Error::InvalidType)
+        Err(BTError::InvalidType)
     }
 
     fn struct_variant<V>(self, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value>
     where
         V: de::Visitor<'de>,
     {
-        Err(Error::InvalidType)
+        Err(BTError::InvalidType)
     }
 }

@@ -2,7 +2,7 @@ use serde::ser;
 
 use heapless::ArrayLength;
 
-use crate::ser::{Error, Result, Serializer};
+use crate::ser::{BTError, Result, Serializer};
 
 pub struct SerializeStruct<'a, B>
 where
@@ -26,7 +26,7 @@ where
     B: ArrayLength<u8>,
 {
     type Ok = ();
-    type Error = Error;
+    type Error = BTError;
 
     fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
     where

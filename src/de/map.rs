@@ -1,6 +1,6 @@
 use serde::de::{self, Visitor};
 
-use crate::de::{Deserializer, Error};
+use crate::de::{Deserializer, BTError};
 
 pub struct MapAccess<'a, 'b> {
     de: &'a mut Deserializer<'b>,
@@ -14,16 +14,16 @@ impl<'a, 'b> MapAccess<'a, 'b> {
 }
 
 impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
-    type Error = Error;
+    type Error = BTError;
 
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, BTError>
     where
         K: de::DeserializeSeed<'de>,
     {
         let peek = match self
             .de
             .parse_whitespace()
-            .ok_or(Error::EofWhileParsingObject)?
+            .ok_or(BTError::EofWhileParsingObject)?
         {
             b'}' => return Ok(None),
             b',' if !self.first => {
@@ -35,19 +35,19 @@ impl<'a, 'de> de::MapAccess<'de> for MapAccess<'a, 'de> {
                     self.first = false;
                     Some(b)
                 } else {
-                    return Err(Error::ExpectedObjectCommaOrEnd);
+                    return Err(BTError::ExpectedObjectCommaOrEnd);
                 }
             }
         };
 
-        match peek.ok_or(Error::EofWhileParsingValue)? {
+        match peek.ok_or(BTError::EofWhileParsingValue)? {
             b'"' => seed.deserialize(MapKey { de: &mut *self.de }).map(Some),
-            b'}' => Err(Error::TrailingComma),
-            _ => Err(Error::KeyMustBeAString),
+            b'}' => Err(BTError::TrailingComma),
+            _ => Err(BTError::KeyMustBeAString),
         }
     }
 
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, BTError>
     where
         V: de::DeserializeSeed<'de>,
     {
@@ -62,9 +62,9 @@ struct MapKey<'a, 'b> {
 }
 
 impl<'de, 'a> de::Deserializer<'de> for MapKey<'a, 'de> {
-    type Error = Error;
+    type Error = BTError;
 
-    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Error>
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, BTError>
     where
         V: Visitor<'de>,
     {
